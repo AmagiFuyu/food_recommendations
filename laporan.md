@@ -64,7 +64,12 @@ Menggunakan teknik Matrix Factorization dengan Truncated SVD untuk memprediksi r
 
 Menggabungkan hasil Content-Based dan Collaborative Filtering dengan skor gabungan:
 
-final_score = 0.5 * similarity_score + 0.5 * predicted_rating
+**final_score = alpha * similarity_score + (1 - alpha) * predicted_rating**
+- similarity_score: skor kemiripan makanan berbasis konten.
+
+- predicted_rating: rating yang diprediksi dari Collaborative Filtering.
+
+- alpha: parameter untuk mengatur proporsi antara kedua pendekatan
 
 # 5. Evaluation
 
@@ -76,15 +81,15 @@ Menampilkan metadata makanan hasil rekomendasi untuk melihat relevansinya secara
 
 Menggunakan metrik:
 
-Precision@5: 0.25
+1. Precision: 0.25
 
-Recall@5: 0.25
+2. Recall: 0.25
 
 Interpretasi:
 
-Precision@5 sebesar 0.25 berarti 25% dari makanan yang direkomendasikan masuk dalam daftar makanan favorit user.
+1. Precision sebesar 0.25 berarti 25% dari makanan yang direkomendasikan masuk dalam daftar makanan favorit user.
 
-Recall@5 sebesar 0.25 berarti 25% dari makanan favorit user berhasil direkomendasikan.
+2. Recall sebesar 0.25 berarti 25% dari makanan favorit user berhasil direkomendasikan.
 
 Nilai ini cukup, namun dapat ditingkatkan lagi dengan menggunakan data rating yang lebih lengkap atau model yang lebih kompleks.
 
