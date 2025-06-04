@@ -1,147 +1,160 @@
 # Laporan Proyek Machine Learning - Submission 2: Sistem Rekomendasi Makanan Berbasis Hybrid Filtering
 
-# Project Overview
+## Project Overview
 
 Dalam dunia modern, konsumen menghadapi banyak pilihan makanan yang tersedia. Untuk membantu pengguna dalam memilih makanan yang sesuai dengan selera dan preferensinya, sistem rekomendasi makanan menjadi sangat penting. Sistem ini dapat meningkatkan pengalaman pengguna dan menghemat waktu pencarian.
 
-# Business Understanding
+## Business Understanding
 
-## Problem Statements
+### Problem Statements
 
-Pengguna sering kali kesulitan menemukan makanan yang cocok dengan selera mereka. Diperlukan sistem yang dapat memberikan rekomendasi makanan secara otomatis berdasarkan histori preferensi dan kemiripan konten makanan.
+1. Pengguna sering kesulitan menemukan makanan yang sesuai dengan selera mereka.
 
-## Goals
+2. Diperlukan sistem yang dapat merekomendasikan makanan secara otomatis berdasarkan histori preferensi dan kemiripan konten makanan.
 
-Solusi yang ditawarkan adalah membangun sistem rekomendasi makanan dengan pendekatan Hybrid Filtering, yaitu gabungan dari Content-Based Filtering dan Collaborative Filtering. Sistem ini mampu memberikan rekomendasi yang lebih akurat dengan mempertimbangkan konten makanan serta histori interaksi pengguna.
+### Goals
 
-# Data Understanding
+1. Membangun sistem rekomendasi makanan berbasis Hybrid Filtering untuk membantu pengguna menemukan makanan yang sesuai.
 
-## Dataset
+2. Memastikan sistem mampu memberikan rekomendasi yang relevan dengan mempertimbangkan histori interaksi pengguna dan kemiripan konten makanan.
+
+## Data Understanding
+
+### Dataset
 
 Dataset yang digunakan diunduh dari Kaggle: https://www.kaggle.com/datasets/schemersays/food-recommendation-system
 
 Terdapat dua file utama:
 
-1.  food.csv: berisi metadata makanan dengan fitur:
+1. food.csv: berisi metadata makanan dengan 400 baris dan 5 kolom:
 
-* `Food_ID`: ID unik untuk makanan
+- Food_ID: ID unik untuk setiap makanan
 
-* `Name`: Nama makanan
+- Name: Nama makanan• C_Type: Jenis masakan (misal: Indian, Italian)
 
-* `C_Type`: Jenis masakan (misal: Indian, Italian)
+- Veg_Non: Kategori makanan (veg/non-veg)
 
-* `Veg_Non`: Kategori makanan (veg/non-veg)
+- Describe: Deskripsi singkat makanan
 
-* `Describe`: Deskripsi singkat makanan
+2. ratings.csv: berisi data rating makanan oleh pengguna dengan 512 baris dan 3 kolom:
 
-2. ratings.csv: berisi data rating makanan oleh pengguna dengan fitur:
+- User_ID: ID pengguna
 
-- `User_ID`: ID pengguna
+- Food_ID: ID makanan yang dirating
 
-- `Food_ID`: ID makanan yang dirating
+- Rating: Nilai rating antara 1 sampai 10
 
-- `Rating`: Nilai rating antara 1 sampai 10
+### Kondisi Data Awal
 
-## Statistik Deskriptif
+food.csv memiliki 400 baris dan 5 kolom, tidak ada baris duplikat sepenuhnya (food_df.duplicated().sum() = 0), tetapi terdapat 2 nilai Name yang sama.
 
-1. food.csv
+ratings.csv memiliki 512 baris dan 3 kolom, dengan 1 baris mengandung nilai kosong di kolom Rating.
 
-- Jumlah makanan: 400
+## Data Preparation
 
-- Jenis makanan populer: Indian (88), Italian, Chinese
+### Penanganan Missing Values
 
-Tidak ditemukan baris yang sepenuhnya duplikat (food_df.duplicated().sum() = 0), namun ditemukan nilai duplikat pada kolom Name, yaitu terdapat 2 nama makanan yang muncul lebih dari satu kali.
+Menghapus baris pada ratings.csv yang memiliki nilai kosong pada kolom `Rating (dropna())`, sehingga tersisa 511 baris.
 
-2. ratings.csv
+### Pra-pemrosesan Teks
 
-- Jumlah entri awal: 512
+1. Mengisi nilai kosong di food.csv pada kolom teks (Name, C_Type, Veg_Non, Describe) dengan string kosong (fillna("")).
 
-- Ditemukan 1 baris dengan nilai kosong yang akan dibuang pada tahap Data Preparation
+2. Membersihkan teks pada tiap kolom tersebut menggunakan fungsi `clean_text`:
 
-- Rata-rata rating: 5.44
+- Mengubah huruf menjadi huruf kecil
 
-# Data Preparation
+- Menghapus karakter non-alfabet (dengan regex)
 
-## Penanganan Missing Values
+- Menghapus stopwords (menggunakan daftar NLTK)
 
-Ditemukan satu baris kosong dalam ratings.csv yang dihapus sebelum digunakan untuk modeling (dropna()).
+3. Menggabungkan kolom`Name`, `C_Type`, `Veg_Non`, dan `Describe` menjadi satu kolom baru combined untuk ekstraksi fitur.
 
-## Pra-pemrosesan Teks
+### Pembentukan Matriks Fitur (Content-Based)
 
-- Menggabungkan kolom Name, C_Type, Veg_Non, dan Describe untuk dijadikan fitur teks
+1. Membentuk vektor fitur **TF-IDF** dari kolom `combined` (maksimal 5000 fitur).
 
-- Membersihkan teks: mengubah huruf menjadi kecil, menghapus karakter non-alfabet, dan stopwords
+2. Menghitung **cosine similarity** antar makanan berdasarkan vektor TF-IDF.
 
-- Membentuk vektor fitur menggunakan TF-IDF
+### Pembentukan Matriks Rating (Collaborative)
 
-- Pembentukan Matriks
+1. Membentuk user-item matrix dari hasil ratings.csv (511 pengguna × 400 makanan), mengisi nilai kosong dengan 0.
 
-- Membentuk user-item matrix untuk collaborative filtering
+2. Menggunakan **Truncated SVD** (n_components=20) untuk dekomposisi matrix rating menjadi matriks faktor pengguna (user_factors) dan faktor item (item_factors).
 
-# Modeling
+3. Menghitung perkiraan rating (`predicted_ratings`) sebagai hasil perkalian `user_factors × item_factors.T`
 
-## Content-Based Filtering
+## Modeling
 
-Menggunakan cosine similarity dari matriks TF-IDF untuk menghitung kemiripan antar makanan.
+### Content-Based Filtering
 
-## Collaborative Filtering
+Menggunakan **cosine similarity** dari matriks TF-IDF untuk menghitung kemiripan antar makanan dan mendapatkan skor similarity.
 
-Menggunakan teknik matrix factorization dengan Truncated SVD untuk memprediksi rating makanan oleh pengguna yang belum memberikan rating.
+### Collaborative Filtering
 
-## Hybrid Recommendation
+Menggunakan **Matrix Factorization** (Truncated SVD) pada user-item matrix untuk memprediksi rating makanan oleh pengguna.
+
+Hybrid Recommendation
 
 Menggabungkan hasil Content-Based dan Collaborative Filtering dengan skor gabungan:
 
-final_score = 0.5 * similarity_score + 0.5 * predicted_rating
+> final_score = 0.5 * similarity_score + 0.5 * predicted_rating
 
-Contoh Output Rekomendasi
+### Contoh Output Rekomendasi
 
-Contoh hasil rekomendasi untuk user 1 dan input "rice":
+Berikut adalah output rekomendasi Top-5 untuk **user_id = 1** dan **input = "rice"** di notebook:
 
-1. mushroom rice
-2. red rice
-3. black rice
-4. brown rice
+1. red rice
+2. black rice
+3. brown rice
+4. mushroom rice
+5. rice kheer
 
-# Evaluation
+Catatan: Fungsi  hybrid_recommendation(1, "rice", top_n=5) menggunakan user_id = 1 (numerik), bukan string.
 
-## Evaluasi Numerik
+## Evaluation
+
+### Evaluasi Numerik
 
 Menggunakan metrik:
 
-1. Precision@4: 0.25
+- Precision@4: 0.25
 
-2. Recall@4: 0.25
+- Recall@4: 0.25
 
-## Interpretasi:
+Interpretasi:
 
-Precision@4 sebesar 0.25 berarti 25% dari makanan yang direkomendasikan termasuk dalam makanan yang pernah disukai oleh user.
+- Precision@4 sebesar 0.25 berarti 25% dari 4 rekomendasi teratas cocok dengan makanan favorit user.
 
-Recall@4 sebesar 0.25 berarti 25% dari makanan favorit user berhasil direkomendasikan.
+- Recall@4 sebesar 0.25 berarti 25% dari makanan favorit user direkomendasikan.
 
-Hubungan dengan Business Understanding
+### Hubungan dengan Business Understanding
 
-Model telah menjawab permasalahan utama dalam project ini, yaitu memberikan rekomendasi makanan berbasis histori pengguna dan kemiripan konten.
-Sistem dapat mencapai tujuan memberikan rekomendasi yang relevan. Nilai metrik evaluasi bisa ditingkatkan dengan menambah data rating dan menggunakan model yang lebih kompleks.
+- Model ini telah menjawab problem statement: memberikan rekomendasi otomatis yang relevan berdasarkan histori preferensi dan konten.
 
-# Kesimpulan
+- Goals terpenuhi dengan membangun sistem hybrid yang menggabungkan kedua pendekatan.
 
-Sistem rekomendasi makanan berbasis Hybrid Filtering berhasil dibangun dengan menggabungkan dua pendekatan: content-based dan collaborative. Meskipun nilai Precision dan Recall belum tinggi, sistem ini menunjukkan potensi untuk memberikan rekomendasi yang relevan.
+- Dengan metrik evaluasi tersebut, sistem memberikan rekomendasi yang cukup relevan, namun perlu ditingkatkan untuk akurasi yang lebih tinggi.
 
-# Saran Pengembangan
+## Kesimpulan
 
-Menambahkan data rating dari lebih banyak pengguna.
+Sistem rekomendasi makanan berbasis Hybrid Filtering berhasil dibangun dengan menggabungkan dua pendekatan: content-based dan collaborative. Output rekomendasi telah diverifikasi sesuai notebook. Meskipun metrik Precision dan Recall masih rendah, sistem menunjukkan potensi yang baik.
 
-Menambahkan fitur seperti harga, bahan utama, waktu memasak, dll.
+## Saran Pengembangan
 
-Menggunakan model deep learning untuk content dan collaborative filtering.
+- Menambahkan data rating dari lebih banyak pengguna untuk meningkatkan kualitas Collaborative Filtering.
 
-# Referensi
+- Menambahkan fitur tambahan (harga, bahan utama, waktu memasak) ke dalam content-based filtering.
 
-https://www.kaggle.com/datasets/schemersays/food-recommendation-system
+- Mengeksplorasi model machine learning atau deep learning yang lebih kompleks.
 
-https://scikit-learn.org
+## Referensi
 
-https://www.nltk.org
+1. https://www.kaggle.com/datasets/schemersays/food-recommendation-system
 
-https://developers.google.com/machine-learning/recommendation
+2. https://scikit-learn.org
+
+3. https://www.nltk.org
+
+4. https://developers.google.com/machine-learning/recommendation
+
